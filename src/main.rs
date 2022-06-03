@@ -28,21 +28,22 @@ async fn main() {
     // You can put the below code into an infinite loop to receive and echo multiple
     // messages
 
-    loop {
-        // make a buffer which can hold upto 1024 bytes or 1KB
-        let mut buffer = [0u8; 1024];
+    // loop {
+    //     // make a buffer which can hold upto 1024 bytes or 1KB
+    //     let mut buffer = [0u8; 1024];
 
-        // read the bytes in the socket and store it in the buffer. 
-        // bytes_read will store how many actual bytes were read by the socket
-        let bytes_read = socket.read(&mut buffer).await.unwrap();
+    //     // read the bytes in the socket and store it in the buffer. 
+    //     // bytes_read will store how many actual bytes were read by the socket
+    //     let bytes_read = socket.read(&mut buffer).await.unwrap();
 
-        // take all the bytes and write it back to the socket 
-        // with the ..bytes_read we are saying send the bytes truncated by the 
-        // the number of bytes correspoding to bytes_read
-        socket.write_all(&buffer[..bytes_read]).await.unwrap();
-        // after writing the message back there is nothing else and the connection is stopped
+    //     // take all the bytes and write it back to the socket 
+    //     // with the ..bytes_read we are saying send the bytes truncated by the 
+    //     // the number of bytes correspoding to bytes_read
+    //     socket.write_all(&buffer[..bytes_read]).await.unwrap();
+    //     // after writing the message back there is nothing else and the connection is stopped
 
-    }
+    // }
     
+    let mut reader = 10;
 
 }
