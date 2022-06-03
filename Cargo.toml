@@ -1,0 +1,11 @@
+[package]
+name = "chat-server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# features flag can be used to import ony specific features from the crate
+# here we are importing all the features of Tokio
+tokio = { version = "1", features = ["full"]}
