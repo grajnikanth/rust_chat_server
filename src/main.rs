@@ -1,4 +1,6 @@
 // Async chat server
+// once compiled to interact with the code, open additional client terminals and
+// use command - "telnet localhost 8080". Once connected you can type your chats
 use tokio::net::TcpListener;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::broadcast;
@@ -78,37 +80,37 @@ async fn main() {
 
 
             loop {
+
+                // tokio::select! macro can be used to concurrently run multiple asynchronous tasks without
+                // each async task blocking the other async tasks like before. The macro takes several async
+                // tasks as shown below and which ever resolves first is run among all the tasks. You have 
+                // to provide the code block that needs to be run after it resolves. The await keyword is not
+                // needed anymore, you get unwrap() the result obtained and get the result of the async task
+                
                 // The read_line implemented as a trait on AsyncBufReadExt
+                tokio::select! {
+                    // The below code to read a line from client
+                    result = reader.read_line(&mut line) => {
 
-                // The below code to read a line from client is iblocking the next line of code
-                // But the fact that other clients are sending messages should be independent of this client
-                // The reading client messages and receiving messages from other clients as they should be concurrent
-                // So we will use tokio::select to achieve concurrency in the next commit
-                let bytes_read = reader.read_line(&mut line).await.unwrap();  
+                        // if no new lines are entered we break out of the loop
+                        // The below happens when the client exits the connection
+                        if result.unwrap() == 0 {
+                            break;
+                        }
 
-                // if no new lines are entered we break out of the loop
-                // The below happens when the client exits the connection
-                if bytes_read == 0 {
-                    break;
+                        // as soon as the line is received we send it to all channels
+                        tx.send(line.clone()).unwrap();
+                        // clear the line so that a new line can be stored in the same variable
+                        line.clear();
+                    }
+
+                    // receive the messages sent to this channel. Once messages
+                    // are received write them to the client
+                    result = rx.recv() => {
+                        let msg = result.unwrap();
+                        socket_writer.write_all(msg.as_bytes()).await.unwrap();
+                    }
                 }
-
-                // as soon as the line is received we send it to all channels
-                // Note that process of reading from each client is blocking the 
-                // logic to receive messages from other clients on the channel
-                // but this should not be the logic, these two tasks shall be independent
-                tx.send(line.clone()).unwrap();
-
-                // receive the messages sent to this channel. Once messages
-                // are received write them to the client
-                let msg = rx.recv().await.unwrap();
-
-                socket_writer.write_all(msg.as_bytes()).await.unwrap();
-
-                // clear the contents stored. As the read_line function appends to the contents
-                // of the line variable. We want to clear it so that each new line is echoed back
-                // rather than all the lines entered so far
-                line.clear();
-
             }
         });
     }
