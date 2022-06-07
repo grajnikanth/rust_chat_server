@@ -80,6 +80,10 @@ async fn main() {
             loop {
                 // The read_line implemented as a trait on AsyncBufReadExt
 
+                // The below code to read a line from client is iblocking the next line of code
+                // But the fact that other clients are sending messages should be independent of this client
+                // The reading client messages and receiving messages from other clients as they should be concurrent
+                // So we will use tokio::select to achieve concurrency in the next commit
                 let bytes_read = reader.read_line(&mut line).await.unwrap();  
 
                 // if no new lines are entered we break out of the loop
