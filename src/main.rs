@@ -1,6 +1,7 @@
 // Async chat server
 use tokio::net::TcpListener;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::sync::broadcast;
 
 // Building an echo server which receives the clients message and sends it back to client
 
@@ -18,6 +19,12 @@ async fn main() {
     // until the code to the left of await is run
     let listener = TcpListener::bind(
         "localhost:8080").await.unwrap();
+
+    // Enabling chats to post to all the clients - use broadcast channels of tokio
+    // The function channel has to specify what type "T" will be broadcasted. In this case
+    // we will broadcast "String"
+    // The lines read in the below code will be broadcasted using this channel
+    let (tx, rx) = broadcast::channel::<String>(10);
 
     // This outer loop is required so that we can check if multiple clients are connecting
     // to the listener. If they are connecting, once the connection is accepted
@@ -42,6 +49,12 @@ async fn main() {
         // addr will not be used so to eliminate unused errors we use "_" in front
         let (mut socket, _addr) = listener.accept().await.unwrap();
 
+        // original tx has to be cloned for using inside the spawn function below
+        // each time a client is accepted a new sender and receiver are cloned representing
+        // channels to each client to tunnel messages through
+        let tx = tx.clone();
+        let mut rx = tx.subscribe();
+
         tokio::spawn( async move {
             // instead of using socket.read() we will use a BufReader which can read lines as 
             // byte streams. This will eliminate us haveing to deal with the number of bytes
@@ -63,6 +76,7 @@ async fn main() {
             // You can put the below code into an infinite loop to receive and echo multiple
             // messages
 
+
             loop {
                 // The read_line implemented as a trait on AsyncBufReadExt
 
@@ -74,7 +88,17 @@ async fn main() {
                     break;
                 }
 
-                socket_writer.write_all(line.as_bytes()).await.unwrap();
+                // as soon as the line is received we send it to all channels
+                // Note that process of reading from each client is blocking the 
+                // logic to receive messages from other clients on the channel
+                // but this should not be the logic, these two tasks shall be independent
+                tx.send(line.clone()).unwrap();
+
+                // receive the messages sent to this channel. Once messages
+                // are received write them to the client
+                let msg = rx.recv().await.unwrap();
+
+                socket_writer.write_all(msg.as_bytes()).await.unwrap();
 
                 // clear the contents stored. As the read_line function appends to the contents
                 // of the line variable. We want to clear it so that each new line is echoed back
