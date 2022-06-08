@@ -26,7 +26,8 @@ async fn main() {
     // The function channel has to specify what type "T" will be broadcasted. In this case
     // we will broadcast "String"
     // The lines read in the below code will be broadcasted using this channel
-    let (tx, rx) = broadcast::channel::<String>(10);
+    // Turbofish operator removed as compiler can figure out the Type from other code below
+    let (tx, rx) = broadcast::channel(10);
 
     // This outer loop is required so that we can check if multiple clients are connecting
     // to the listener. If they are connecting, once the connection is accepted
@@ -47,9 +48,11 @@ async fn main() {
         // a new thread is spawned.
 
         // accept method - accepts a new connection and yields the socket and address
-        // of the connection
-        // addr will not be used so to eliminate unused errors we use "_" in front
-        let (mut socket, _addr) = listener.accept().await.unwrap();
+        // of the client connecting
+        // we can use the address variable addr to specifically deal with this particular 
+        // client
+        let (mut socket, addr) = listener.accept().await.unwrap();
+        println!("The address of the client connected is {:?}", addr);
 
         // original tx has to be cloned for using inside the spawn function below
         // each time a client is accepted a new sender and receiver are cloned representing
@@ -98,17 +101,29 @@ async fn main() {
                             break;
                         }
 
-                        // as soon as the line is received we send it to all channels
-                        tx.send(line.clone()).unwrap();
+                        // instead of sending the line read to all clients. Send it 
+                        // only to this client from which we received the line from
+                        // with the tx.send we are sending a tuple containing (string, address)
+                        // The receiver on the other side is going to get this tuple 
+                        tx.send((line.clone(), addr)).unwrap();
                         // clear the line so that a new line can be stored in the same variable
                         line.clear();
                     }
 
                     // receive the messages sent to this channel. Once messages
                     // are received write them to the client
+
                     result = rx.recv() => {
-                        let msg = result.unwrap();
-                        socket_writer.write_all(msg.as_bytes()).await.unwrap();
+                        // receive the tuple of (string, address) from akk the senders
+                        // since the client can see the text typed on the terminal, we can
+                        // say that write to all clients whose address is not equal to current
+                        // client address stored in the addr variable. This will eliminate the
+                        // echo we see
+                        let (msg, other_addr) = result.unwrap();
+                        if addr != other_addr {
+                            socket_writer.write_all(msg.as_bytes()).await.unwrap();
+                        }
+                        
                     }
                 }
             }
